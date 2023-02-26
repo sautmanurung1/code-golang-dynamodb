@@ -97,7 +97,7 @@ func intOrNone(i string) int {
 	return result
 }
 
-func search(c echo.Context) error {
+func Search(c echo.Context) error {
 	var request ResponseItem
 	if err := c.Bind(&request); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -141,7 +141,7 @@ func search(c echo.Context) error {
 func main() {
 	e := echo.New()
 
-	e.POST("/search-x.api", search)
+	e.POST("/search-x.api", Search)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }
