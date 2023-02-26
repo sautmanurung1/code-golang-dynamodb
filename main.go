@@ -19,6 +19,7 @@ type RequestItem struct {
 	ViewTypes      string `json:"viewTypes"`
 	PerPage        int    `json:"per_page"`
 }
+
 type ResponseItem struct {
 	Id            string  `json:"id"`
 	PhotoUri      string  `json:"photoUri"`
