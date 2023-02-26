@@ -15,7 +15,7 @@ func TestSearch(t *testing.T) {
 	e := echo.New()
 
 	// Act
-	req := httptest.NewRequest(http.MethodGet, "/search", strings.NewReader(`{
+	req := httptest.NewRequest(http.MethodGet, "/search-x.api", strings.NewReader(`{
 		"keywords": "92101",
 		"availableOnly": 1,
 		"forSaleTypes": ["By Agent", "Coming Soon", "By Owner", "Auction", "New Construction", "Foreclosures"],
