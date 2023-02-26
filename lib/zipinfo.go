@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 )
 
 var data map[string]interface{}
@@ -23,17 +24,18 @@ func init() {
 	json.Unmarshal(dataBytes, &data)
 }
 
-func isValidZipcode(zipcode string) bool {
+func IsValidZipcode(zipcode string) bool {
 	zipcodePattern := regexp.MustCompile(`^\d{5}(?:[-\s]\d{4})?$`)
 	return zipcodePattern.MatchString(zipcode)
 }
 
-func boundingRectangle(zipCode string) (float64, float64, float64, float64) {
+func BoundingRectangle(zipCode int) (float64, float64, float64, float64) {
+	convZipCode := strconv.Itoa(zipCode)
 	// Find the feature with the given zip code
 	feature := map[string]interface{}{}
 	for _, feat := range data["features"].([]interface{}) {
 		feat := feat.(map[string]interface{})
-		if feat["properties"].(map[string]interface{})["ZIP"].(string) == zipCode {
+		if feat["properties"].(map[string]interface{})["ZIP"].(string) == convZipCode {
 			feature = feat
 			break
 		}
