@@ -63,7 +63,8 @@ func DynamoQuery(queryParameters map[string]interface{}) []interface{} {
 
 // ExecuteQueryThread is a function to be run in a goroutine to execute a query
 func ExecuteQueryThread(queryParameters map[string]interface{}, latitudeBox int) {
-	query := CreateQuery(queryParameters, latitudeBox)
+	convLatitudeBox := float64(latitudeBox)
+	query := CreateQuery(queryParameters, convLatitudeBox)
 	var result []interface{}
 	consumedCapacity := ExecuteQuery(result, query)
 	fmt.Println("CONSUMED_CAPACITY = ", consumedCapacity)
@@ -118,9 +119,11 @@ func ExecuteQuery(result []interface{}, query map[string]*dynamodb.AttributeValu
 	return consumedCapacity
 }
 
-func BuildBaseQuery(queryParams map[string]interface{}, latitudeBox string) (*dynamodb.QueryInput, int) {
-	var indexName, keyName string
-	if queryParams["webAvailable"].(bool) {
+func BuildBaseQuery(queryParameters map[string]interface{}, latitudeBox float64) (*dynamodb.QueryInput, map[string]*dynamodb.AttributeValue) {
+	var indexName string
+	var keyName string
+
+	if queryParameters["webAvailable"] == true {
 		indexName = "latitude-longitude-webavailable-index"
 		keyName = "latitude_box_webavailable"
 	} else {
@@ -134,48 +137,82 @@ func BuildBaseQuery(queryParams map[string]interface{}, latitudeBox string) (*dy
 		ReturnConsumedCapacity: aws.String("TOTAL"),
 		KeyConditionExpression: aws.String(fmt.Sprintf("%s = :latitude_box AND longitude BETWEEN :minLongitude AND :maxLongitude", keyName)),
 		FilterExpression:       aws.String(""),
-		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
-			":latitude_box": {
-				N: aws.String(latitudeBox),
-			},
-			":minLongitude": {
-				N: aws.String(fmt.Sprint(queryParams["minLongitude"])),
-			},
-			":maxLongitude": {
-				N: aws.String(fmt.Sprint(queryParams["maxLongitude"])),
-			},
-		},
 	}
 
-	for key, value := range queryParams {
-		if key == "minLongitude" || key == "maxLongitude" || key == "webAvailable" {
-			continue
-		}
-
-		addFilter(queryParams, query, key, value)
-		// remove trailing 'AND '
-		filterLength := len(*query.FilterExpression)
-		query.FilterExpression = aws.String((*query.FilterExpression)[:filterLength-4])
+	return query, map[string]*dynamodb.AttributeValue{
+		":latitude_box": {N: aws.String(fmt.Sprintf("%.f", latitudeBox))},
+		":minLongitude": {N: aws.String(fmt.Sprint(queryParameters["minLongitude"].(float64)))},
+		":maxLongitude": {N: aws.String(fmt.Sprint(queryParameters["maxLongitude"].(float64)))},
 	}
-
-	return query, 0
 }
 
-func addFilter(queryParams map[string]interface{}, query *dynamodb.QueryInput, key string, value interface{}) {
+func AddFilter(queryParameters map[string]interface{}, query *dynamodb.QueryInput, key string) {
 	if key[:3] == "min" {
-		field := key[1:]
-		field = field[:1] + strings.ToLower(field[1:])
-
-		*query.FilterExpression += fmt.Sprintf("%s >= :%s_min AND ", field, field)
-		query.ExpressionAttributeValues[":min"+field] = &dynamodb.AttributeValue{
-			N: aws.String(fmt.Sprint(value)),
+		field := key[3:]
+		field = strings.ToLower(field[:1]) + field[1:]
+		query.FilterExpression = aws.String(fmt.Sprintf("%s >= :%s_min AND ", field, field))
+		query.ExpressionAttributeValues[fmt.Sprintf(":%s_min", field)] = &dynamodb.AttributeValue{
+			N: aws.String(fmt.Sprintf("%v", queryParameters[key])),
 		}
 	} else if key[:3] == "max" {
-		field := key[1:]
-		field = field[:1] + strings.ToLower(field[1:])
-		*query.FilterExpression += fmt.Sprintf("%s <= :%s_max AND ", field, field)
-		query.ExpressionAttributeValues[":max"+field] = &dynamodb.AttributeValue{
-			N: aws.String(fmt.Sprint(value)),
+		field := key[3:]
+		field = strings.ToLower(field[:1]) + field[1:]
+		query.FilterExpression = aws.String(fmt.Sprintf("%s <= :%s_max AND ", field, field))
+		query.ExpressionAttributeValues[fmt.Sprintf(":%s_max", field)] = &dynamodb.AttributeValue{
+			N: aws.String(fmt.Sprintf("%v", queryParameters[key])),
+		}
+	} else {
+		field := key
+		value := queryParameters[key]
+		if values, ok := value.([]string); ok {
+			if len(values) > 0 {
+				var exprValues []string
+				for idx, v := range values {
+					query.ExpressionAttributeValues[fmt.Sprintf(":%s_%d", field, idx)] = &dynamodb.AttributeValue{
+						S: aws.String(v),
+					}
+					exprValues = append(exprValues, fmt.Sprintf(":%s_%d", field, idx))
+				}
+				query.FilterExpression = aws.String(fmt.Sprintf("%s IN (%s) AND ", field, strings.Join(exprValues, ",")))
+			}
+		} else {
+			switch v := value.(type) {
+			case string:
+				query.ExpressionAttributeValues[fmt.Sprintf(":%s", field)] = &dynamodb.AttributeValue{
+					S: aws.String(v),
+				}
+				query.FilterExpression = aws.String(fmt.Sprintf("%s = :%s AND ", field, field))
+			case bool:
+				query.ExpressionAttributeValues[fmt.Sprintf(":%s", field)] = &dynamodb.AttributeValue{
+					BOOL: aws.Bool(v),
+				}
+				query.FilterExpression = aws.String(fmt.Sprintf("%s = :%s AND ", field, field))
+			case int:
+				query.ExpressionAttributeValues[fmt.Sprintf(":%s", field)] = &dynamodb.AttributeValue{
+					N: aws.String(fmt.Sprintf("%d", v)),
+				}
+				query.FilterExpression = aws.String(fmt.Sprintf("%s = :%s AND ", field, field))
+			case float64:
+				query.ExpressionAttributeValues[fmt.Sprintf(":%s", field)] = &dynamodb.AttributeValue{
+					N: aws.String(fmt.Sprintf("%f", v)),
+				}
+				query.FilterExpression = aws.String(fmt.Sprintf("%s = :%s AND ", field, field))
+			default:
+				panic(fmt.Sprintf("Unsupported data type for %s: %T", field, value))
+			}
 		}
 	}
+}
+
+func CreateQuery(queryParameters map[string]interface{}, latitudeBox float64) map[string]*dynamodb.AttributeValue {
+	query, query2 := BuildBaseQuery(queryParameters, latitudeBox)
+	for key := range queryParameters {
+		if key == "minLongitude" || key == "maxLongitude" {
+			continue
+		}
+		AddFilter(queryParameters, query, key)
+	}
+
+	fmt.Println("query = ", query)
+	return query2
 }
