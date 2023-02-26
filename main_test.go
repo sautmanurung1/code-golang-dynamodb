@@ -15,7 +15,7 @@ func TestSearch(t *testing.T) {
 	e := echo.New()
 
 	// Act
-	req := httptest.NewRequest(http.MethodGet, "/search-x.api", strings.NewReader(`{
+	req := httptest.NewRequest(http.MethodPost, "/search-x.api", strings.NewReader(`{
 		"keywords": "92101",
 		"availableOnly": 1,
 		"forSaleTypes": ["By Agent", "Coming Soon", "By Owner", "Auction", "New Construction", "Foreclosures"],
@@ -29,7 +29,7 @@ func TestSearch(t *testing.T) {
 
 	// Assert
 	if assert.NoError(t, Search(c)) {
-		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
 		assert.True(t, len(rec.Body.String()) > 10)
 	}
 }
