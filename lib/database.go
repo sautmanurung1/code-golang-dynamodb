@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 )
@@ -16,10 +15,10 @@ const retsSearchTable = "rets-search"
 var dynamodbClient *dynamodb.DynamoDB // initialize the client outside the function
 
 // Initialize the client
-func InitDynamoDBClient() {
-	session := session.Must(session.NewSession())
-	dynamodbClient = dynamodb.New(session)
-}
+//func InitDynamoDBClient() {
+//	sess := session.Must(session.NewSession())
+//	dynamodbClient = dynamodb.New(sess)
+//}
 
 func Deserialize(dynamodbJSON map[string]*dynamodb.AttributeValue) (map[string]interface{}, error) {
 	result := map[string]interface{}{}
@@ -35,7 +34,7 @@ func LatitudeBoxValues(minLat, maxLat float64) []int {
 	minLatInt := int(minLat * 10)
 	maxLatInt := int(maxLat * 10)
 
-	values := []int{}
+	var values []int
 	for i := minLatInt; i <= maxLatInt; i++ {
 		values = append(values, i)
 	}
@@ -48,7 +47,7 @@ func DynamoQuery(queryParameters map[string]interface{}) []interface{} {
 		queryParameters["minLatitude"].(float64),
 		queryParameters["maxLatitude"].(float64))
 
-	result := []interface{}{}
+	var result []interface{}
 	var wg sync.WaitGroup
 	wg.Add(len(latitudeBoxes))
 
@@ -94,7 +93,7 @@ func ExecuteQuery(result []interface{}, query map[string]*dynamodb.AttributeValu
 		}
 
 		// Deserialize response items
-		items := []map[string]interface{}{}
+		var items []map[string]interface{}
 		for _, item := range response.Items {
 			result, err := Deserialize(item)
 			if err != nil {

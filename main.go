@@ -38,7 +38,7 @@ type ResponseItem struct {
 	Zip           int     `json:"zip"`
 }
 
-func prepare(json map[string]interface{}, nothing ResponseItem) map[string]interface{} {
+func prepare(json map[string]interface{}) map[string]interface{} {
 	jsonCopy := make(map[string]interface{})
 	for k, v := range json {
 		jsonCopy[k] = v
@@ -99,11 +99,11 @@ func intOrNone(i string) int {
 
 func Search(c echo.Context) error {
 	newest := make(map[string]interface{})
-	var request ResponseItem
+	var request RequestItem
 	if err := c.Bind(&request); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
-	queryParameters := prepare(newest, request)
+	queryParameters := prepare(newest)
 	result := lib.DynamoQuery(queryParameters)
 
 	response := make([]ResponseItem, 0, len(result))

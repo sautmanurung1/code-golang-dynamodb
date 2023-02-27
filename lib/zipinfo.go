@@ -21,7 +21,10 @@ func init() {
 	dataBytes, _ := ioutil.ReadFile(filePath)
 
 	// Parse the file contents as JSON
-	json.Unmarshal(dataBytes, &data)
+	err := json.Unmarshal(dataBytes, &data)
+	if err != nil {
+		return
+	}
 }
 
 func IsValidZipcode(zipcode string) bool {
