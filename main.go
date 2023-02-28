@@ -11,13 +11,13 @@ import (
 )
 
 type RequestItem struct {
-	Keywords       int    `json:"keywords"`
-	AvailableOnly  int    `json:"availableOnly"`
-	ForSaleTypes   string `json:"forSaleTypes"`
-	PropertyTypes  string `json:"propertyTypes"`
-	OtherAmenities string `json:"otherAmenities"`
-	ViewTypes      string `json:"viewTypes"`
-	PerPage        int    `json:"per_page"`
+	Keywords       string   `json:"keywords"`
+	AvailableOnly  int      `json:"availableOnly"`
+	ForSaleTypes   []string `json:"forSaleTypes"`
+	PropertyTypes  []string `json:"propertyTypes"`
+	OtherAmenities []string `json:"otherAmenities"`
+	ViewTypes      []string `json:"viewTypes"`
+	PerPage        int      `json:"per_page"`
 }
 
 type ResponseItem struct {
@@ -39,7 +39,7 @@ type ResponseItem struct {
 }
 
 func prepare(json map[string]interface{}) map[string]interface{} {
-	jsonCopy := make(map[string]interface{})
+	jsonCopy := json
 	for k, v := range json {
 		jsonCopy[k] = v
 	}
@@ -98,17 +98,18 @@ func intOrNone(i string) int {
 }
 
 func Search(c echo.Context) error {
-	newest := make(map[string]interface{})
 	var request RequestItem
 	if err := c.Bind(&request); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
-	queryParameters := prepare(newest)
+	queryParameters := prepare(map[string]interface{}{
+		"data-requester": request,
+	})
 	result := lib.DynamoQuery(queryParameters)
 
 	response := make([]ResponseItem, 0, len(result))
 	for _, item := range result {
-		itemMap, ok := item.(map[string]interface{})
+		var itemMap, ok = item.(map[string]interface{})
 		if !ok {
 			continue
 		}
@@ -143,6 +144,8 @@ func main() {
 	e := echo.New()
 
 	e.POST("/search-x.api", Search)
-
-	e.Logger.Fatal(e.Start(":8080"))
+	err := e.Start(":8080")
+	if err != nil {
+		fmt.Println("ERP : ", err)
+	}
 }

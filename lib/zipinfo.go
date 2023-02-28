@@ -2,7 +2,6 @@ package lib
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -18,7 +17,7 @@ func init() {
 
 	// Open the file using the relative file path
 	filePath := filepath.Join(scriptDir, "ZIP_CODES.geojson")
-	dataBytes, _ := ioutil.ReadFile(filePath)
+	dataBytes, _ := os.ReadFile(filePath)
 
 	// Parse the file contents as JSON
 	err := json.Unmarshal(dataBytes, &data)
@@ -47,7 +46,8 @@ func BoundingRectangle(zipCode int) (float64, float64, float64, float64) {
 	if feature != nil {
 		// Extract the bounding rectangle coordinates
 		coords := feature["geometry"].(map[string]interface{})["coordinates"].([]interface{})[0].([]interface{})
-		lons, lats := []float64{}, []float64{}
+		var lats []float64
+		var lons []float64
 		for _, coord := range coords {
 			lon, lat := coord.([]interface{})[0].(float64), coord.([]interface{})[1].(float64)
 			lons, lats = append(lons, lon), append(lats, lat)
